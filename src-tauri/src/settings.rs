@@ -360,6 +360,12 @@ pub struct AppSettings {
     #[serde(default = "default_typing_tool")]
     pub typing_tool: TypingTool,
     pub external_script_path: Option<String>,
+    #[serde(default)]
+    pub bedrock_profile: Option<String>,
+    #[serde(default = "default_bedrock_region")]
+    pub bedrock_region: String,
+    #[serde(default)]
+    pub bedrock_custom_model: Option<String>,
 }
 
 fn default_model() -> String {
@@ -447,6 +453,10 @@ fn default_show_tray_icon() -> bool {
     true
 }
 
+fn default_bedrock_region() -> String {
+    "us-east-1".to_string()
+}
+
 fn default_post_process_provider_id() -> String {
     "openai".to_string()
 }
@@ -500,6 +510,14 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+        },
+        PostProcessProvider {
+            id: "bedrock".to_string(),
+            label: "Amazon Bedrock".to_string(),
+            base_url: "".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: None,
+            supports_structured_output: false,
         },
     ];
 
@@ -724,6 +742,9 @@ pub fn get_default_settings() -> AppSettings {
         paste_delay_ms: default_paste_delay_ms(),
         typing_tool: default_typing_tool(),
         external_script_path: None,
+        bedrock_profile: None,
+        bedrock_region: default_bedrock_region(),
+        bedrock_custom_model: None,
     }
 }
 
@@ -831,6 +852,11 @@ pub fn write_settings(app: &AppHandle, settings: AppSettings) {
         .expect("Failed to initialize store");
 
     store.set("settings", serde_json::to_value(&settings).unwrap());
+
+    // Explicitly save to ensure persistence
+    if let Err(e) = store.save() {
+        log::error!("Failed to save settings store: {}", e);
+    }
 }
 
 pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {

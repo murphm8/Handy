@@ -1,16 +1,70 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSettings } from "../../../hooks/useSettings";
-import { commands, type PostProcessProvider } from "@/bindings";
+import { commands } from "@/bindings";
 import type { ModelOption } from "./types";
 import type { DropdownOption } from "../../ui/Dropdown";
 
-type PostProcessProviderState = {
+const APPLE_PROVIDER_ID = "apple_intelligence";
+
+const BEDROCK_MODELS = [
+  {
+    value: "us.anthropic.claude-opus-4-6-v1",
+    label: "Claude Opus 4.6",
+  },
+  {
+    value: "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    label: "Claude Sonnet 4.5",
+  },
+  {
+    value: "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    label: "Claude Haiku 4.5",
+  },
+  {
+    value: "anthropic.claude-3-haiku-20240307-v1:0",
+    label: "Claude 3 Haiku",
+  },
+  {
+    value: "us.amazon.nova-pro-v1:0",
+    label: "Amazon Nova Pro",
+  },
+  {
+    value: "us.meta.llama3-3-70b-instruct-v1:0",
+    label: "Meta Llama 3.3 70B",
+  },
+  {
+    value: "custom",
+    label: "Custom Model",
+  },
+];
+
+type CommonState = {
   providerOptions: DropdownOption[];
   selectedProviderId: string;
-  selectedProvider: PostProcessProvider | undefined;
+  handleProviderSelect: (providerId: string) => void;
+};
+
+type BedrockProviderState = CommonState & {
+  kind: "bedrock";
+  profile: string;
+  region: string;
+  selectedModel: string;
+  isCustomModel: boolean;
+  customModel: string;
+  modelOptions: typeof BEDROCK_MODELS;
+  handleProfileBlur: (value: string) => void;
+  handleRegionBlur: (value: string) => void;
+  handleModelChange: (value: string) => void;
+  handleCustomModelBlur: (value: string) => void;
+};
+
+type AppleProviderState = CommonState & {
+  kind: "apple";
+  unavailable: boolean;
+};
+
+type StandardProviderState = CommonState & {
+  kind: "standard";
   isCustomProvider: boolean;
-  isAppleProvider: boolean;
-  appleIntelligenceUnavailable: boolean;
   baseUrl: string;
   handleBaseUrlChange: (value: string) => void;
   isBaseUrlUpdating: boolean;
@@ -22,17 +76,21 @@ type PostProcessProviderState = {
   modelOptions: ModelOption[];
   isModelUpdating: boolean;
   isFetchingModels: boolean;
-  handleProviderSelect: (providerId: string) => void;
   handleModelSelect: (value: string) => void;
   handleModelCreate: (value: string) => void;
   handleRefreshModels: () => void;
 };
 
-const APPLE_PROVIDER_ID = "apple_intelligence";
+export type PostProcessProviderState =
+  | BedrockProviderState
+  | AppleProviderState
+  | StandardProviderState;
 
 export const usePostProcessProviderState = (): PostProcessProviderState => {
   const {
     settings,
+    getSetting,
+    updateSetting,
     isUpdating,
     setPostProcessProvider,
     updatePostProcessBaseUrl,
@@ -42,7 +100,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     postProcessModelOptions,
   } = useSettings();
 
-  // Settings are guaranteed to have providers after migration
+  const [appleUnavailable, setAppleUnavailable] = useState(false);
+
+  // ── Common state ──────────────────────────────────────────────────────
+
   const providers = settings?.post_process_providers || [];
 
   const selectedProviderId = useMemo(() => {
@@ -56,15 +117,6 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     );
   }, [providers, selectedProviderId]);
 
-  const isAppleProvider = selectedProvider?.id === APPLE_PROVIDER_ID;
-  const [appleIntelligenceUnavailable, setAppleIntelligenceUnavailable] =
-    useState(false);
-
-  // Use settings directly as single source of truth
-  const baseUrl = selectedProvider?.base_url ?? "";
-  const apiKey = settings?.post_process_api_keys?.[selectedProviderId] ?? "";
-  const model = settings?.post_process_models?.[selectedProviderId] ?? "";
-
   const providerOptions = useMemo<DropdownOption[]>(() => {
     return providers.map((provider) => ({
       value: provider.id,
@@ -75,7 +127,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   const handleProviderSelect = useCallback(
     async (providerId: string) => {
       // Clear error state on any selection attempt (allows dismissing the error)
-      setAppleIntelligenceUnavailable(false);
+      setAppleUnavailable(false);
 
       if (providerId === selectedProviderId) return;
 
@@ -83,7 +135,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
       if (providerId === APPLE_PROVIDER_ID) {
         const available = await commands.checkAppleIntelligenceAvailable();
         if (!available) {
-          setAppleIntelligenceUnavailable(true);
+          setAppleUnavailable(true);
           // Don't return - still set the provider so dropdown shows the selection
           // The backend gracefully handles unavailable Apple Intelligence
         }
@@ -94,11 +146,52 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     [selectedProviderId, setPostProcessProvider],
   );
 
+  const model = settings?.post_process_models?.[selectedProviderId] ?? "";
+
+  // ── Bedrock-specific state ────────────────────────────────────────────
+
+  const bedrockProfile = (getSetting("bedrock_profile") as string) || "";
+  const bedrockRegion =
+    (getSetting("bedrock_region") as string) || "us-east-1";
+  const bedrockCustomModel =
+    (getSetting("bedrock_custom_model") as string) || "";
+
+  const handleBedrockProfileBlur = useCallback(
+    (value: string) => {
+      void updateSetting("bedrock_profile", value || null);
+    },
+    [updateSetting],
+  );
+
+  const handleBedrockRegionBlur = useCallback(
+    (value: string) => {
+      void updateSetting("bedrock_region", value);
+    },
+    [updateSetting],
+  );
+
+  const handleBedrockModelChange = useCallback(
+    (value: string) => {
+      void updatePostProcessModel(selectedProviderId, value.trim());
+    },
+    [selectedProviderId, updatePostProcessModel],
+  );
+
+  const handleBedrockCustomModelBlur = useCallback(
+    (value: string) => {
+      void updateSetting("bedrock_custom_model", value || null);
+    },
+    [updateSetting],
+  );
+
+  // ── Standard provider state ───────────────────────────────────────────
+
+  const baseUrl = selectedProvider?.base_url ?? "";
+  const apiKey = settings?.post_process_api_keys?.[selectedProviderId] ?? "";
+
   const handleBaseUrlChange = useCallback(
     (value: string) => {
-      if (!selectedProvider || selectedProvider.id !== "custom") {
-        return;
-      }
+      if (!selectedProvider || selectedProvider.id !== "custom") return;
       const trimmed = value.trim();
       if (trimmed && trimmed !== baseUrl) {
         void updatePostProcessBaseUrl(selectedProvider.id, trimmed);
@@ -142,9 +235,8 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   );
 
   const handleRefreshModels = useCallback(() => {
-    if (isAppleProvider) return;
     void fetchPostProcessModels(selectedProviderId);
-  }, [fetchPostProcessModels, isAppleProvider, selectedProviderId]);
+  }, [fetchPostProcessModels, selectedProviderId]);
 
   const availableModelsRaw = postProcessModelOptions[selectedProviderId] || [];
 
@@ -159,12 +251,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
       options.push({ value: trimmed, label: trimmed });
     };
 
-    // Add available models from API
     for (const candidate of availableModelsRaw) {
       upsert(candidate);
     }
 
-    // Ensure current model is in the list
     upsert(model);
 
     return options;
@@ -183,17 +273,39 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     `post_process_models_fetch:${selectedProviderId}`,
   );
 
-  const isCustomProvider = selectedProvider?.id === "custom";
+  // ── Return the appropriate variant ────────────────────────────────────
 
-  // No automatic fetching - user must click refresh button
+  const common = { providerOptions, selectedProviderId, handleProviderSelect };
+
+  if (selectedProvider?.id === "bedrock") {
+    return {
+      ...common,
+      kind: "bedrock",
+      profile: bedrockProfile,
+      region: bedrockRegion,
+      selectedModel: model,
+      isCustomModel: model === "custom",
+      customModel: bedrockCustomModel,
+      modelOptions: BEDROCK_MODELS,
+      handleProfileBlur: handleBedrockProfileBlur,
+      handleRegionBlur: handleBedrockRegionBlur,
+      handleModelChange: handleBedrockModelChange,
+      handleCustomModelBlur: handleBedrockCustomModelBlur,
+    };
+  }
+
+  if (selectedProvider?.id === APPLE_PROVIDER_ID) {
+    return {
+      ...common,
+      kind: "apple",
+      unavailable: appleUnavailable,
+    };
+  }
 
   return {
-    providerOptions,
-    selectedProviderId,
-    selectedProvider,
-    isCustomProvider,
-    isAppleProvider,
-    appleIntelligenceUnavailable,
+    ...common,
+    kind: "standard",
+    isCustomProvider: selectedProvider?.id === "custom",
     baseUrl,
     handleBaseUrlChange,
     isBaseUrlUpdating,
@@ -205,7 +317,6 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     modelOptions,
     isModelUpdating,
     isFetchingModels,
-    handleProviderSelect,
     handleModelSelect,
     handleModelCreate,
     handleRefreshModels,

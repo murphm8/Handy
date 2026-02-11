@@ -358,6 +358,24 @@
           "refreshModels": "Refresh models"
         }
       },
+      "bedrock": {
+        "profile": {
+          "title": "AWS Profile",
+          "description": "AWS profile name. Leave empty to use the default profile. Due to Rust SDK limitations, the profile must be defined in ~/.aws/config (as [profile name]) and optionally in ~/.aws/credentials (as [name]) if using static credentials."
+        },
+        "region": {
+          "title": "AWS Region",
+          "description": "AWS region where Bedrock API calls will be made. Must be a region where Bedrock is available (e.g., us-east-1, eu-west-1)."
+        },
+        "model": {
+          "title": "Model",
+          "description": "Select a model for post-processing. Different models offer different balances of speed, capability, and cost."
+        },
+        "customModel": {
+          "title": "Custom Model ID",
+          "description": "Enter the full model ID or inference profile ARN. Examples: us.anthropic.claude-sonnet-4-5-20250929-v1:0 or arn:aws:bedrock:us-east-1:123456789012:inference-profile/my-profile"
+        }
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
