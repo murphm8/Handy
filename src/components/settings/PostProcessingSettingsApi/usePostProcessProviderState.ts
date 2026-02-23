@@ -94,7 +94,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     postProcessModelOptions,
   } = useSettings();
 
-  const [appleUnavailable, setAppleUnavailable] = useState(false);
+  const [appleIntelligenceUnavailable, setAppleIntelligenceUnavailable] = useState(false);
 
   // ── Common state ──────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   const handleProviderSelect = useCallback(
     async (providerId: string) => {
       // Clear error state on any selection attempt (allows dismissing the error)
-      setAppleUnavailable(false);
+      setAppleIntelligenceUnavailable(false);
 
       if (providerId === selectedProviderId) return;
 
@@ -133,7 +133,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
       if (providerId === APPLE_PROVIDER_ID) {
         const available = await commands.checkAppleIntelligenceAvailable();
         if (!available) {
-          setAppleUnavailable(true);
+          setAppleIntelligenceUnavailable(true);
           // Don't return - still set the provider so dropdown shows the selection
           // The backend gracefully handles unavailable Apple Intelligence
         }
@@ -327,7 +327,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   if (isAppleProvider) {
     return {
       ...defaults,
-      unavailable: appleUnavailable,
+      unavailable: appleIntelligenceUnavailable,
     };
   }
 
