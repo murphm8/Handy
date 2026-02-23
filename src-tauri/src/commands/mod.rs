@@ -189,3 +189,33 @@ pub fn initialize_shortcuts(app: AppHandle) -> Result<(), String> {
     log::info!("Shortcuts initialized successfully");
     Ok(())
 }
+
+/// Update Bedrock AWS profile setting
+#[specta::specta]
+#[tauri::command]
+pub fn update_bedrock_profile(app: AppHandle, profile: Option<String>) -> Result<(), String> {
+    let mut settings = get_settings(&app);
+    settings.bedrock_profile = profile.filter(|s| !s.trim().is_empty());
+    write_settings(&app, settings);
+    Ok(())
+}
+
+/// Update Bedrock AWS region setting
+#[specta::specta]
+#[tauri::command]
+pub fn update_bedrock_region(app: AppHandle, region: String) -> Result<(), String> {
+    let mut settings = get_settings(&app);
+    settings.bedrock_region = region;
+    write_settings(&app, settings);
+    Ok(())
+}
+
+/// Update Bedrock custom model override setting
+#[specta::specta]
+#[tauri::command]
+pub fn update_bedrock_custom_model(app: AppHandle, model: Option<String>) -> Result<(), String> {
+    let mut settings = get_settings(&app);
+    settings.bedrock_custom_model = model.filter(|s| !s.trim().is_empty());
+    write_settings(&app, settings);
+    Ok(())
+}

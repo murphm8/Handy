@@ -360,6 +360,12 @@ pub struct AppSettings {
     #[serde(default = "default_typing_tool")]
     pub typing_tool: TypingTool,
     pub external_script_path: Option<String>,
+    #[serde(default)]
+    pub bedrock_profile: Option<String>,
+    #[serde(default = "default_bedrock_region")]
+    pub bedrock_region: String,
+    #[serde(default)]
+    pub bedrock_custom_model: Option<String>,
 }
 
 fn default_model() -> String {
@@ -503,6 +509,15 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         },
     ];
 
+    providers.push(PostProcessProvider {
+        id: "bedrock".to_string(),
+        label: "Amazon Bedrock".to_string(),
+        base_url: "".to_string(),
+        allow_base_url_edit: false,
+        models_endpoint: None,
+        supports_structured_output: true,
+    });
+
     // Note: We always include Apple Intelligence on macOS ARM64 without checking availability
     // at startup. The availability check is deferred to when the user actually tries to use it
     // (in actions.rs). This prevents crashes on macOS 26.x beta where accessing
@@ -568,6 +583,10 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
 
 fn default_typing_tool() -> TypingTool {
     TypingTool::Auto
+}
+
+fn default_bedrock_region() -> String {
+    "us-east-1".to_string()
 }
 
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
@@ -724,6 +743,9 @@ pub fn get_default_settings() -> AppSettings {
         paste_delay_ms: default_paste_delay_ms(),
         typing_tool: default_typing_tool(),
         external_script_path: None,
+        bedrock_profile: None,
+        bedrock_region: default_bedrock_region(),
+        bedrock_custom_model: None,
     }
 }
 

@@ -3,6 +3,7 @@ mod actions;
 mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
+mod bedrock_client;
 pub mod cli;
 mod clipboard;
 mod commands;
@@ -312,6 +313,9 @@ pub fn run(cli_args: CliArgs) {
         commands::check_apple_intelligence_available,
         commands::initialize_enigo,
         commands::initialize_shortcuts,
+        commands::update_bedrock_profile,
+        commands::update_bedrock_region,
+        commands::update_bedrock_custom_model,
         commands::models::get_available_models,
         commands::models::get_model_info,
         commands::models::download_model,

@@ -112,6 +112,79 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         provider.id, model
     );
 
+    if provider.id == "bedrock" {
+        let model_id = if model == "custom" {
+            match settings.bedrock_custom_model.as_ref() {
+                Some(custom) if !custom.trim().is_empty() => custom.as_str(),
+                _ => {
+                    debug!("Bedrock post-processing skipped: 'custom' selected but no custom model ID provided");
+                    return None;
+                }
+            }
+        } else {
+            &model
+        };
+
+        debug!(
+            "Routing to Bedrock with profile: {:?}, region: {}, model: {}",
+            settings.bedrock_profile, settings.bedrock_region, model_id
+        );
+
+        if provider.supports_structured_output {
+            let system_prompt = build_system_prompt(&prompt);
+            match crate::bedrock_client::send_bedrock_structured_completion(
+                settings.bedrock_profile.as_deref(),
+                &settings.bedrock_region,
+                model_id,
+                Some(&system_prompt),
+                transcription,
+            )
+            .await
+            {
+                Ok(result) => {
+                    let result = strip_invisible_chars(&result);
+                    debug!(
+                        "Bedrock structured output succeeded, result length: {}",
+                        result.len()
+                    );
+                    return Some(result);
+                }
+                Err(e) => {
+                    warn!(
+                        "Bedrock structured output failed: {}. Falling back to plain mode.",
+                        e
+                    );
+                    // Fall through to plain completion below
+                }
+            }
+        }
+
+        // Plain (legacy) mode: entire prompt as user message
+        let processed_prompt = prompt.replace("${output}", transcription);
+        match crate::bedrock_client::send_bedrock_completion(
+            settings.bedrock_profile.as_deref(),
+            &settings.bedrock_region,
+            model_id,
+            None,
+            &processed_prompt,
+        )
+        .await
+        {
+            Ok(result) => {
+                let result = strip_invisible_chars(&result);
+                debug!(
+                    "Bedrock post-processing succeeded, result length: {}",
+                    result.len()
+                );
+                return Some(result);
+            }
+            Err(e) => {
+                error!("Bedrock post-processing failed: {}", e);
+                return None;
+            }
+        }
+    }
+
     let api_key = settings
         .post_process_api_keys
         .get(&provider.id)
