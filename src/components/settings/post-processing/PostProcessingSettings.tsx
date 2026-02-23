@@ -49,7 +49,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         </div>
       </SettingContainer>
 
-      {state.kind === "bedrock" ? (
+      {state.isBedrockProvider ? (
         <>
           <SettingContainer
             title={t("settings.postProcessing.bedrock.profile.title")}
@@ -124,7 +124,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
             </SettingContainer>
           )}
         </>
-      ) : state.kind === "apple" ? (
+      ) : state.isAppleProvider ? (
         state.unavailable ? (
           <Alert variant="error" contained>
             {t("settings.postProcessing.api.appleIntelligence.unavailable")}

@@ -5,6 +5,8 @@ import type { ModelOption } from "./types";
 import type { DropdownOption } from "../../ui/Dropdown";
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
+const BEDROCK_PROVIDER_ID = "bedrock";
+const CUSTOM_PROVIDER_ID = "custom";
 
 const BEDROCK_MODELS = [
   {
@@ -37,34 +39,31 @@ const BEDROCK_MODELS = [
   },
 ];
 
-type CommonState = {
+const noop = () => {};
+
+export type PostProcessProviderState = {
+  // Common
   providerOptions: DropdownOption[];
   selectedProviderId: string;
   handleProviderSelect: (providerId: string) => void;
-};
+  isAppleProvider: boolean;
+  isBedrockProvider: boolean;
+  isCustomProvider: boolean;
 
-type BedrockProviderState = CommonState & {
-  kind: "bedrock";
+  // Apple Intelligence
+  unavailable: boolean;
+
+  // Bedrock
   profile: string;
   region: string;
   selectedModel: string;
   isCustomModel: boolean;
   customModel: string;
-  modelOptions: typeof BEDROCK_MODELS;
   handleProfileBlur: (value: string) => void;
   handleRegionBlur: (value: string) => void;
-  handleModelChange: (value: string) => void;
   handleCustomModelBlur: (value: string) => void;
-};
 
-type AppleProviderState = CommonState & {
-  kind: "apple";
-  unavailable: boolean;
-};
-
-type StandardProviderState = CommonState & {
-  kind: "standard";
-  isCustomProvider: boolean;
+  // Standard
   baseUrl: string;
   handleBaseUrlChange: (value: string) => void;
   isBaseUrlUpdating: boolean;
@@ -73,18 +72,13 @@ type StandardProviderState = CommonState & {
   isApiKeyUpdating: boolean;
   model: string;
   handleModelChange: (value: string) => void;
-  modelOptions: ModelOption[];
+  modelOptions: ModelOption[] | typeof BEDROCK_MODELS;
   isModelUpdating: boolean;
   isFetchingModels: boolean;
   handleModelSelect: (value: string) => void;
   handleModelCreate: (value: string) => void;
   handleRefreshModels: () => void;
 };
-
-export type PostProcessProviderState =
-  | BedrockProviderState
-  | AppleProviderState
-  | StandardProviderState;
 
 export const usePostProcessProviderState = (): PostProcessProviderState => {
   const {
@@ -116,6 +110,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
       providers[0]
     );
   }, [providers, selectedProviderId]);
+
+  const isAppleProvider = selectedProvider?.id === APPLE_PROVIDER_ID;
+  const isBedrockProvider = selectedProvider?.id === BEDROCK_PROVIDER_ID;
+  const isCustomProvider = selectedProvider?.id === CUSTOM_PROVIDER_ID;
 
   const providerOptions = useMemo<DropdownOption[]>(() => {
     return providers.map((provider) => ({
@@ -191,13 +189,13 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   const handleBaseUrlChange = useCallback(
     (value: string) => {
-      if (!selectedProvider || selectedProvider.id !== "custom") return;
+      if (!isCustomProvider) return;
       const trimmed = value.trim();
       if (trimmed && trimmed !== baseUrl) {
-        void updatePostProcessBaseUrl(selectedProvider.id, trimmed);
+        void updatePostProcessBaseUrl(selectedProviderId, trimmed);
       }
     },
-    [selectedProvider, baseUrl, updatePostProcessBaseUrl],
+    [isCustomProvider, selectedProviderId, baseUrl, updatePostProcessBaseUrl],
   );
 
   const handleApiKeyChange = useCallback(
@@ -273,14 +271,46 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     `post_process_models_fetch:${selectedProviderId}`,
   );
 
-  // ── Return the appropriate variant ────────────────────────────────────
+  // ── Defaults for inactive variants ────────────────────────────────────
 
-  const common = { providerOptions, selectedProviderId, handleProviderSelect };
+  const defaults = {
+    providerOptions,
+    selectedProviderId,
+    handleProviderSelect,
+    isAppleProvider,
+    isBedrockProvider,
+    isCustomProvider,
+    // Apple Intelligence defaults
+    unavailable: false,
+    // Bedrock defaults
+    profile: "",
+    region: "",
+    selectedModel: "",
+    isCustomModel: false,
+    customModel: "",
+    handleProfileBlur: noop,
+    handleRegionBlur: noop,
+    handleCustomModelBlur: noop,
+    // Standard defaults
+    baseUrl: "",
+    handleBaseUrlChange: noop,
+    isBaseUrlUpdating: false,
+    apiKey: "",
+    handleApiKeyChange: noop,
+    isApiKeyUpdating: false,
+    model: "",
+    handleModelChange: noop,
+    modelOptions: [] as ModelOption[],
+    isModelUpdating: false,
+    isFetchingModels: false,
+    handleModelSelect: noop,
+    handleModelCreate: noop,
+    handleRefreshModels: noop,
+  };
 
-  if (selectedProvider?.id === "bedrock") {
+  if (isBedrockProvider) {
     return {
-      ...common,
-      kind: "bedrock",
+      ...defaults,
       profile: bedrockProfile,
       region: bedrockRegion,
       selectedModel: model,
@@ -294,18 +324,15 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     };
   }
 
-  if (selectedProvider?.id === APPLE_PROVIDER_ID) {
+  if (isAppleProvider) {
     return {
-      ...common,
-      kind: "apple",
+      ...defaults,
       unavailable: appleUnavailable,
     };
   }
 
   return {
-    ...common,
-    kind: "standard",
-    isCustomProvider: selectedProvider?.id === "custom",
+    ...defaults,
     baseUrl,
     handleBaseUrlChange,
     isBaseUrlUpdating,
