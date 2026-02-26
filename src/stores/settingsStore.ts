@@ -135,6 +135,11 @@ const settingUpdaters: {
     commands.changeExperimentalEnabledSetting(value as boolean),
   show_tray_icon: (value) =>
     commands.changeShowTrayIconSetting(value as boolean),
+  bedrock_profile: (value) =>
+    commands.updateBedrockProfile(value as string | null),
+  bedrock_region: (value) => commands.updateBedrockRegion(value as string),
+  bedrock_custom_model: (value) =>
+    commands.updateBedrockCustomModel(value as string | null),
 };
 
 export const useSettingsStore = create<SettingsStore>()(
