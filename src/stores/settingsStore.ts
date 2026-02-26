@@ -121,6 +121,12 @@ const settingUpdaters: {
   auto_submit_key: (value) =>
     commands.changeAutoSubmitKeySetting(value as string),
   history_limit: (value) => commands.updateHistoryLimit(value as number),
+  bedrock_profile: (value) =>
+    commands.updateBedrockProfile(value as string | null),
+  bedrock_region: (value) =>
+    commands.updateBedrockRegion(value as string),
+  bedrock_custom_model: (value) =>
+    commands.updateBedrockCustomModel(value as string | null),
   post_process_enabled: (value) =>
     commands.changePostProcessEnabledSetting(value as boolean),
   post_process_selected_prompt_id: (value) =>

@@ -18,6 +18,11 @@ import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
+import {
+  BedrockProfileField,
+  BedrockRegionField,
+  BedrockCustomModelField,
+} from "../PostProcessingSettingsApi/BedrockFields";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ShortcutInput } from "../ShortcutInput";
 import { useSettings } from "../../../hooks/useSettings";
@@ -44,18 +49,95 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         </div>
       </SettingContainer>
 
-      {state.isAppleProvider ? (
-        state.appleIntelligenceUnavailable ? (
+      {state.isBedrockProvider ? (
+        <>
+          <SettingContainer
+            title={t("settings.postProcessing.bedrock.profile.title")}
+            description={t(
+              "settings.postProcessing.bedrock.profile.description",
+            )}
+            descriptionMode="tooltip"
+            layout="horizontal"
+            grouped={true}
+          >
+            <BedrockProfileField
+              value={state.profile}
+              onBlur={state.handleProfileBlur}
+              placeholder="default"
+              className="min-w-[320px]"
+            />
+          </SettingContainer>
+
+          <SettingContainer
+            title={t("settings.postProcessing.bedrock.region.title")}
+            description={t(
+              "settings.postProcessing.bedrock.region.description",
+            )}
+            descriptionMode="tooltip"
+            layout="horizontal"
+            grouped={true}
+          >
+            <BedrockRegionField
+              value={state.region}
+              onBlur={state.handleRegionBlur}
+              placeholder="us-east-1"
+              className="min-w-[320px]"
+            />
+          </SettingContainer>
+
+          <SettingContainer
+            title={t("settings.postProcessing.bedrock.model.title")}
+            description={t(
+              "settings.postProcessing.bedrock.model.description",
+            )}
+            descriptionMode="tooltip"
+            layout="horizontal"
+            grouped={true}
+          >
+            <Dropdown
+              selectedValue={state.selectedModel}
+              options={state.modelOptions}
+              onSelect={state.handleModelChange}
+              placeholder="Select a model or Custom..."
+              className="min-w-[380px]"
+            />
+          </SettingContainer>
+
+          {state.isCustomModel && (
+            <SettingContainer
+              title={t(
+                "settings.postProcessing.bedrock.customModel.title",
+              )}
+              description={t(
+                "settings.postProcessing.bedrock.customModel.description",
+              )}
+              descriptionMode="tooltip"
+              layout="horizontal"
+              grouped={true}
+            >
+              <BedrockCustomModelField
+                value={state.customModel}
+                onBlur={state.handleCustomModelBlur}
+                placeholder=""
+                className="min-w-[320px]"
+              />
+            </SettingContainer>
+          )}
+        </>
+      ) : state.isAppleProvider ? (
+        state.unavailable ? (
           <Alert variant="error" contained>
             {t("settings.postProcessing.api.appleIntelligence.unavailable")}
           </Alert>
         ) : null
       ) : (
         <>
-          {state.selectedProvider?.id === "custom" && (
+          {state.isCustomProvider && (
             <SettingContainer
               title={t("settings.postProcessing.api.baseUrl.title")}
-              description={t("settings.postProcessing.api.baseUrl.description")}
+              description={t(
+                "settings.postProcessing.api.baseUrl.description",
+              )}
               descriptionMode="tooltip"
               layout="horizontal"
               grouped={true}
@@ -93,51 +175,53 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
               />
             </div>
           </SettingContainer>
-        </>
-      )}
 
-      {!state.isAppleProvider && (
-        <SettingContainer
-          title={t("settings.postProcessing.api.model.title")}
-          description={
-            state.isCustomProvider
-              ? t("settings.postProcessing.api.model.descriptionCustom")
-              : t("settings.postProcessing.api.model.descriptionDefault")
-          }
-          descriptionMode="tooltip"
-          layout="stacked"
-          grouped={true}
-        >
-          <div className="flex items-center gap-2">
-            <ModelSelect
-              value={state.model}
-              options={state.modelOptions}
-              disabled={state.isModelUpdating}
-              isLoading={state.isFetchingModels}
-              placeholder={
-                state.modelOptions.length > 0
-                  ? t(
-                      "settings.postProcessing.api.model.placeholderWithOptions",
-                    )
-                  : t("settings.postProcessing.api.model.placeholderNoOptions")
-              }
-              onSelect={state.handleModelSelect}
-              onCreate={state.handleModelCreate}
-              onBlur={() => {}}
-              className="flex-1 min-w-[380px]"
-            />
-            <ResetButton
-              onClick={state.handleRefreshModels}
-              disabled={state.isFetchingModels}
-              ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
-              className="flex h-10 w-10 items-center justify-center"
-            >
-              <RefreshCcw
-                className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
+          <SettingContainer
+            title={t("settings.postProcessing.api.model.title")}
+            description={
+              state.isCustomProvider
+                ? t("settings.postProcessing.api.model.descriptionCustom")
+                : t("settings.postProcessing.api.model.descriptionDefault")
+            }
+            descriptionMode="tooltip"
+            layout="stacked"
+            grouped={true}
+          >
+            <div className="flex items-center gap-2">
+              <ModelSelect
+                value={state.model}
+                options={state.modelOptions}
+                disabled={state.isModelUpdating}
+                isLoading={state.isFetchingModels}
+                placeholder={
+                  state.modelOptions.length > 0
+                    ? t(
+                        "settings.postProcessing.api.model.placeholderWithOptions",
+                      )
+                    : t(
+                        "settings.postProcessing.api.model.placeholderNoOptions",
+                      )
+                }
+                onSelect={state.handleModelSelect}
+                onCreate={state.handleModelCreate}
+                onBlur={() => {}}
+                className="flex-1 min-w-[380px]"
               />
-            </ResetButton>
-          </div>
-        </SettingContainer>
+              <ResetButton
+                onClick={state.handleRefreshModels}
+                disabled={state.isFetchingModels}
+                ariaLabel={t(
+                  "settings.postProcessing.api.model.refreshModels",
+                )}
+                className="flex h-10 w-10 items-center justify-center"
+              >
+                <RefreshCcw
+                  className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
+                />
+              </ResetButton>
+            </div>
+          </SettingContainer>
+        </>
       )}
     </>
   );

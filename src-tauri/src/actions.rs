@@ -112,6 +112,48 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         provider.id, model
     );
 
+    if provider.id == "bedrock" {
+        let processed_prompt = prompt.replace("${output}", transcription);
+        let model_id = if model == "custom" {
+            // When "custom" is selected, require bedrock_custom_model to be set
+            match settings.bedrock_custom_model.as_ref() {
+                Some(custom) if !custom.trim().is_empty() => custom.as_str(),
+                _ => {
+                    debug!("Bedrock post-processing skipped: 'custom' selected but no custom model ID provided");
+                    return None;
+                }
+            }
+        } else {
+            // Use the preset model selected from the dropdown
+            &model
+        };
+
+        debug!(
+            "Routing to Bedrock with profile: {:?}, region: {}, model: {}",
+            settings.bedrock_profile, settings.bedrock_region, model_id
+        );
+
+        // TODO: Split prompt into system and user messages for better Claude performance
+        match crate::bedrock_client::send_bedrock_completion(
+            settings.bedrock_profile.as_deref(),
+            &settings.bedrock_region,
+            model_id,
+            None,
+            &processed_prompt,
+        )
+        .await
+        {
+            Ok(result) => {
+                debug!("Bedrock post-processing succeeded, result length: {}", result.len());
+                return Some(result);
+            }
+            Err(e) => {
+                error!("Bedrock post-processing failed: {}", e);
+                return None;
+            }
+        }
+    }
+
     let api_key = settings
         .post_process_api_keys
         .get(&provider.id)
